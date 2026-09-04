@@ -19,6 +19,10 @@ type Props = {
   canMoveBack: boolean;
   canMoveForward: boolean;
   registerPlayer: (id: string, player: TwitchPlayer | null) => void;
+  /** Écran tactile : sans survol, le bandeau s'ouvre et se ferme au toucher. */
+  touch: boolean;
+  overlayOpen: boolean;
+  onToggleOverlay: (id: string) => void;
   goal: Goal | null;
   draggable: boolean;
   dragging: boolean;
@@ -49,6 +53,9 @@ export default function PlayerTile({
   canMoveBack,
   canMoveForward,
   registerPlayer,
+  touch,
+  overlayOpen,
+  onToggleOverlay,
   goal,
   draggable,
   dragging,
@@ -214,6 +221,7 @@ export default function PlayerTile({
     onPointerUp: release,
     onPointerCancel: release,
     onDoubleClick: () => onFocus(pov.id),
+    onClick: touch ? () => onToggleOverlay(pov.id) : undefined,
   };
 
   return (
@@ -224,6 +232,7 @@ export default function PlayerTile({
       data-drag={dragging}
       data-playing={pov.status === "playing"}
       data-draggable={draggable}
+      data-overlay={overlayOpen}
       // Cliquer un réglage laisse le focus dessus, ce qui garderait le bandeau
       // ouvert après le départ du pointeur. On rend la main en quittant la case.
       onMouseLeave={(e) => {

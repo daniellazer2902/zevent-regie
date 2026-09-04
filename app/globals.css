@@ -411,8 +411,16 @@ button, input, select { font-family: inherit; color: inherit; }
   transition: opacity 0.13s, transform 0.13s;
   max-width: 96%;
 }
-.tile:hover .overlay,
-.tile:focus-within .overlay {
+/* Au survol quand il y en a un, au toucher sinon. */
+@media (hover: hover) {
+  .tile:hover .overlay {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+  }
+}
+.tile:focus-within .overlay,
+.tile[data-overlay="true"] .overlay {
   opacity: 1;
   transform: translate(-50%, 0);
   pointer-events: auto;

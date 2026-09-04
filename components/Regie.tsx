@@ -44,6 +44,7 @@ export default function Regie() {
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [goals, setGoals] = useState<Record<string, Goal>>({});
   const [stripOffset, setStripOffset] = useState(0);
+  const [openOverlay, setOpenOverlay] = useState<string | null>(null);
 
   const wallRef = useRef<HTMLElement | null>(null);
   const hydrated = useRef(false);
@@ -163,6 +164,13 @@ export default function Regie() {
       return next;
     });
   }, []);
+
+  // Sur écran tactile, un appui ouvre le bandeau d'une source et referme celui
+  // de la précédente : sans survol, il faut bien un geste pour les appeler.
+  const toggleOverlay = useCallback(
+    (id: string) => setOpenOverlay((prev) => (prev === id ? null : id)),
+    []
+  );
 
   const onDragStart = useCallback((id: string) => setDragId(id), []);
   const onDragEnd = useCallback(() => setDragId(null), []);
@@ -604,6 +612,9 @@ export default function Regie() {
                 onDragMove={onDragMove}
                 onDragEnd={onDragEnd}
                 registerPlayer={registerPlayer}
+                touch={stacked}
+                overlayOpen={openOverlay === pov.id}
+                onToggleOverlay={toggleOverlay}
                 goal={pov.twitchId ? goals[pov.twitchId] ?? null : null}
               />
             );
