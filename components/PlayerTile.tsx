@@ -332,7 +332,16 @@ export default function PlayerTile({
             <span className="who">
               <span className="n">{pov.display}</span>
               <span className="m">
-                SRC {num} · twitch.tv/{pov.login}
+                SRC {num} ·{" "}
+                <a
+                  className="channel"
+                  href={`https://www.twitch.tv/${pov.login}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Ouvrir la chaîne de ${pov.display} sur Twitch`}
+                >
+                  twitch.tv/{pov.login}
+                </a>
                 {goal && <b> · {goal.donation}</b>}
               </span>
             </span>

@@ -734,3 +734,7 @@ input[type="range"].live::-moz-range-thumb { background: var(--tally); }
   .start h1 { font-size: 20px; }
   .start p { font-size: 13px; }
 }
+
+/* Le nom de la chaîne mène au direct sur Twitch. */
+.overlay-id .m .channel { color: var(--dim); text-decoration: none; border-bottom: 1px solid transparent; }
+.overlay-id .m .channel:hover { color: var(--tally); border-bottom-color: var(--tally); }
