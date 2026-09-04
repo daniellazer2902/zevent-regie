@@ -531,7 +531,9 @@ input[type="range"].live::-moz-range-thumb { background: var(--tally); }
   position: absolute;
   top: 6px;
   left: 6px;
-  z-index: 5;
+  /* Au-dessus du bandeau de contrôle : sur une petite vignette, celui-ci
+     recouvre le coin supérieur gauche et rendrait la pastille inatteignable. */
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: 5px;
