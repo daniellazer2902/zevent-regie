@@ -76,6 +76,28 @@ ne sont donc jamais réordonnées : leur position dans le document ne bouge pas,
 seule leur géométrie change. C'est ce qui permet de passer d'une disposition à
 l'autre sans perdre une seconde de flux ni les niveaux de son.
 
+## Sur téléphone
+
+Les sources s'empilent en une colonne que l'on fait défiler au doigt, le panneau
+de recherche devient un tiroir, et le glisser-déposer laisse la place aux flèches
+du bandeau de contrôle pour ne pas confisquer le geste de défilement. « Plein
+cadre » bascule le téléphone en plein écran.
+
+## Problèmes connus
+
+**Sous Brave, réduire la fenêtre coupe les lecteurs.** La régie s'appuie sur le
+SDK officiel de Twitch, dont Brave bloque une partie des scripts qu'il classe
+parmi les traceurs publicitaires. Mettre la fenêtre en arrière-plan suffit alors
+à interrompre les flux, qu'il faut relancer au retour. Le comportement vient du
+navigateur et du SDK, pas de la régie : il ne sera pas corrigé. Chrome, Edge et
+Firefox ne sont pas concernés.
+
+**Chaque source demande un clic pour démarrer.** Les navigateurs n'accordent le
+droit de lancer une vidéo qu'à un geste atterrissant dans le lecteur lui-même :
+une page ne peut pas décider à sa place. C'est pourquoi la couche transparente
+posée sur chaque vignette laisse une ouverture en son centre tant que le flux
+n'a pas démarré.
+
 ## Licence
 
 MIT.

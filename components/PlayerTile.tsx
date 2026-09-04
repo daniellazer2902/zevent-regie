@@ -206,6 +206,8 @@ export default function PlayerTile({
     }
   };
 
+  const unit = rect.px ? "px" : "%";
+
   const surfaceHandlers = {
     onPointerDown: grab,
     onPointerMove: move,
@@ -229,10 +231,10 @@ export default function PlayerTile({
         if (active instanceof HTMLElement && e.currentTarget.contains(active)) active.blur();
       }}
       style={{
-        left: `${rect.left}%`,
-        top: `${rect.top}%`,
-        width: `${rect.width}%`,
-        height: `${rect.height}%`,
+        left: `${rect.left}${unit}`,
+        top: `${rect.top}${unit}`,
+        width: `${rect.width}${unit}`,
+        height: `${rect.height}${unit}`,
       }}
     >
       <div className="tile-inner">

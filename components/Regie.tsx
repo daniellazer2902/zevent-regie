@@ -38,7 +38,7 @@ export default function Regie() {
   const [data, setData] = useState<StreamersPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [wallAspect, setWallAspect] = useState(16 / 9);
+  const [wall, setWall] = useState({ width: 1280, height: 720 });
   const [copied, setCopied] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [pulse, setPulse] = useState<Pulse | null>(null);
@@ -63,6 +63,10 @@ export default function Regie() {
     [order, byId]
   );
   const activeLogins = useMemo(() => new Set(povs.map((p) => p.login)), [povs]);
+
+  // Sous cette largeur, une grille devient illisible : les sources s'empilent
+  // et le mur défile au doigt.
+  const stacked = wall.width < 760;
 
   /* ---------- Actions ---------- */
 
@@ -206,12 +210,18 @@ export default function Regie() {
     (id: string) => {
       if (mode === "fullscreen" && focusedId === id) {
         setMode("grid");
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         return;
       }
       setFocusedId(id);
       setMode("fullscreen");
+      // Sur un téléphone, « plein cadre » doit vouloir dire plein écran :
+      // sinon la barre du navigateur mange le tiers de l'image.
+      if (stacked && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
     },
-    [mode, focusedId]
+    [mode, focusedId, stacked]
   );
 
   /* ---------- Composition partagée par l'URL ---------- */
@@ -243,6 +253,8 @@ export default function Regie() {
       setOrder(seeded.map((p) => p.id));
     }
     setHistory(readHistory());
+    // Sur un écran étroit, le panneau des sources recouvre le mur : il part fermé.
+    if (window.innerWidth < 760) setSourcesOpen(false);
     hydrated.current = true;
   }, []);
 
@@ -356,21 +368,27 @@ export default function Regie() {
   /* ---------- Géométrie du mur ---------- */
 
   useEffect(() => {
-    const wall = wallRef.current;
-    if (!wall) return;
+    const node = wallRef.current;
+    if (!node) return;
     const measure = () => {
-      const { width, height } = wall.getBoundingClientRect();
-      if (width > 0 && height > 0) setWallAspect(width / height);
+      const { width, height } = node.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        setWall((prev) =>
+          Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5
+            ? prev
+            : { width, height }
+        );
+      }
     };
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(wall);
+    observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
-  const rects = useMemo(
-    () => computeRects(order, mode, focusedId, wallAspect, stripOffset),
-    [order, mode, focusedId, wallAspect, stripOffset]
+  const { rects, contentHeight } = useMemo(
+    () => computeRects({ order, mode, focusedId, wall, stripOffset, stacked }),
+    [order, mode, focusedId, wall, stripOffset, stacked]
   );
 
   // Le bandeau du mode focus revient en haut dès qu'on change de source mise
@@ -380,7 +398,7 @@ export default function Regie() {
   // Molette au-dessus du bandeau : on fait défiler les vignettes en attente.
   const onWallWheel = useCallback(
     (e: React.WheelEvent<HTMLElement>) => {
-      if (mode !== "focus") return;
+      if (mode !== "focus" || stacked) return;
       // Un panneau de paliers ouvert gère son propre défilement.
       if ((e.target as HTMLElement).closest?.(".goals-panel")) return;
       const wall = wallRef.current;
@@ -529,7 +547,7 @@ export default function Regie() {
           />
         )}
 
-        <main className="wall" ref={wallRef} onWheel={onWallWheel}>
+        <main className="wall" ref={wallRef} onWheel={onWallWheel} data-stacked={stacked}>
           {mode === "fullscreen" && povs.length > 0 && (
             <button className="leave-full" onClick={() => setMode("grid")}>
               Quitter le plein cadre
@@ -556,6 +574,10 @@ export default function Regie() {
 
           {/* L'ordre du DOM suit l'ordre d'insertion et ne change jamais.
               Seule la géométrie bouge, sinon les lecteurs se rechargeraient. */}
+          {contentHeight > 0 && (
+            <div className="wall-spacer" style={{ height: contentHeight }} aria-hidden="true" />
+          )}
+
           {povs.map((pov) => {
             const index = order.indexOf(pov.id);
             const rect = rects[pov.id];
@@ -576,7 +598,7 @@ export default function Regie() {
                 onMove={movePov}
                 canMoveBack={index > 0}
                 canMoveForward={index >= 0 && index < order.length - 1}
-                draggable={mode === "grid" && order.length > 1}
+                draggable={mode === "grid" && order.length > 1 && !stacked}
                 dragging={dragId === pov.id}
                 onDragStart={onDragStart}
                 onDragMove={onDragMove}

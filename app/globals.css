@@ -257,6 +257,7 @@ button, input, select { font-family: inherit; color: inherit; }
   position: relative;
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background-color: var(--rack);
   background-image:
     linear-gradient(var(--rule-soft) 1px, transparent 1px),
@@ -313,11 +314,15 @@ button, input, select { font-family: inherit; color: inherit; }
    La grande couche s'efface tant que la source ne joue pas, pour laisser le
    bouton de lecture de Twitch accessible. La bande du haut reste toujours
    active : elle donne accès au bandeau de contrôle en toute circonstance. */
-.hit { position: absolute; inset: 0; z-index: 4; touch-action: none; }
+.hit { position: absolute; inset: 0; z-index: 4; touch-action: manipulation; }
+/* Le doigt garde le défilement : le pointeur n'est confisqué que là où un
+   déplacement est réellement possible. */
+.tile[data-draggable="true"] .hit,
+.tile[data-draggable="true"] .hit-strip { touch-action: none; }
 
 /* Cadre de captation : il entoure l'ouverture centrale laissée au bouton de
    lecture de Twitch, tant que la source n'a pas démarré. */
-.hit-strip { position: absolute; z-index: 4; touch-action: none; }
+.hit-strip { position: absolute; z-index: 4; touch-action: manipulation; }
 .hit-strip.top { top: 0; left: 0; right: 0; height: 32%; }
 .hit-strip.bottom { bottom: 0; left: 0; right: 0; height: 32%; }
 .hit-strip.left { top: 32%; bottom: 32%; left: 0; width: 32%; }
@@ -514,11 +519,7 @@ input[type="range"].live::-moz-range-thumb { background: var(--tally); }
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
 
-@media (max-width: 780px) {
-  :root { --side-w: 100%; }
-  .sources { position: absolute; inset: var(--head-h) 0 auto 0; height: 60dvh; z-index: 20; }
-  .head-stats { gap: 12px; }
-}
+
 
 /* Le compteur signale son changement sans le crier. */
 .stat .value { transition: color 0.35s ease; }
@@ -686,3 +687,50 @@ input[type="range"].live::-moz-range-thumb { background: var(--tally); }
 }
 .wall:hover .leave-full { opacity: 1; }
 .leave-full:hover { color: var(--tally); border-color: var(--tally); }
+
+/* ---------- Écran étroit ---------- */
+
+/* Une colonne qui défile : la grille n'a plus de sens sous cette largeur. */
+.wall[data-stacked="true"] {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.wall-spacer { width: 1px; pointer-events: none; }
+
+@media (max-width: 760px) {
+  :root { --head-h: 44px; --side-w: 100%; }
+
+  /* La barre d'outils défile plutôt que de se tasser. */
+  .head { gap: 12px; overflow-x: auto; scrollbar-width: none; }
+  .head::-webkit-scrollbar { display: none; }
+  .wordmark span { display: none; }
+  .credit { display: none; }
+  .head-stats { gap: 14px; margin-left: 14px; }
+  .stat .label { font-size: 9px; }
+
+  /* Le panneau des sources devient un tiroir posé sur le mur. */
+  .sources {
+    position: absolute;
+    inset: var(--head-h) 0 auto 0;
+    height: 68dvh;
+    z-index: 30;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    box-shadow: 0 18px 40px -18px #000;
+  }
+  .src { padding: 9px 12px; }
+  .src img, .src .noavatar { width: 30px; height: 30px; flex-basis: 30px; }
+  .src-name { font-size: 14px; }
+
+  /* Bandeau de contrôle et paliers, à portée du pouce. */
+  .overlay { max-width: 100%; padding: 6px 7px 7px; }
+  .overlay .btn { height: 26px; padding: 0 8px; }
+  .overlay-id .m { font-size: 9.5px; }
+  .goals-panel { font-size: 13px; }
+
+  .mix { min-height: 62px; padding: 8px 10px; gap: 10px; }
+  .strip { min-width: 150px; }
+  .start h1 { font-size: 20px; }
+  .start p { font-size: 13px; }
+}

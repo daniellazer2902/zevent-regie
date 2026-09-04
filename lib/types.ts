@@ -51,7 +51,14 @@ export type HistoryEntry = {
   seenAt: number;
 };
 
-export type Rect = { left: number; top: number; width: number; height: number };
+export type Rect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** Valeurs en pixels plutôt qu'en pourcentages (colonne unique défilante). */
+  px?: boolean;
+};
 
 /** Un palier de dons d'une source. */
 export type GoalStep = {
