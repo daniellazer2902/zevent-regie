@@ -22,8 +22,8 @@ export default function MixBar({ povs, onPatch, onMuteAll }: Props) {
 
       {audible.length === 0 ? (
         <p className="mix-empty">
-          Aucune source audible. Survolez une vignette et activez son son : chaque niveau
-          se règle indépendamment.
+          Aucune source audible. Ouvrez les réglages d'une vignette et activez son son :
+          chaque niveau se règle indépendamment.
         </p>
       ) : (
         audible.map((pov) => {

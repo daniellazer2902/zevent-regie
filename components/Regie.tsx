@@ -57,6 +57,10 @@ export default function Regie() {
   const rectsRef = useRef<Record<string, Rect>>({});
   // Les lecteurs Twitch vivants, pour pouvoir tous les lancer d'un seul geste.
   const players = useRef(new Map<string, TwitchPlayer>());
+  // Dernière position connue du pointeur pendant un glisser, et défilement
+  // courant du bandeau : lus par le minuteur de défilement automatique.
+  const dragPointer = useRef<{ x: number; y: number } | null>(null);
+  const stripOffsetRef = useRef(0);
 
   const byId = useMemo(() => new Map(povs.map((p) => [p.id, p])), [povs]);
   const ordered = useMemo(
@@ -86,6 +90,7 @@ export default function Regie() {
         volume: DEFAULT_VOLUME,
         muted: true, // une source arrive toujours muette
         status: "loading",
+        nonce: 0,
       };
 
       setPovs((prev) => (prev.some((p) => p.login === login) ? prev : [...prev, pov]));
@@ -134,6 +139,19 @@ export default function Regie() {
     setPovs((prev) => prev.map((p) => (p.muted ? p : { ...p, muted: true })));
   }, []);
 
+  /**
+   * Reconstruit le lecteur d'une source.
+   *
+   * Un flux figé ne repart jamais seul : ni la mise en arrière-plan du
+   * navigateur sur téléphone, ni un script bloqué, ni un stream redémarré ne
+   * réveillent l'iframe. Seule une reconstruction complète le fait.
+   */
+  const refreshPov = useCallback((id: string) => {
+    setPovs((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, nonce: p.nonce + 1, status: "loading" } : p))
+    );
+  }, []);
+
   const movePov = useCallback((id: string, direction: -1 | 1) => {
     setOrder((prev) => {
       const i = prev.indexOf(id);
@@ -173,12 +191,15 @@ export default function Regie() {
   );
 
   const onDragStart = useCallback((id: string) => setDragId(id), []);
-  const onDragEnd = useCallback(() => setDragId(null), []);
+  const onDragEnd = useCallback(() => {
+    setDragId(null);
+    dragPointer.current = null;
+  }, []);
 
   // La source suivie glisse d'emplacement en emplacement : on cherche la case
   // survolée, et l'ordre change aussitôt. Les autres vignettes s'écartent
   // toutes seules, sans jamais bouger dans le DOM.
-  const onDragMove = useCallback(
+  const dropAt = useCallback(
     (id: string, clientX: number, clientY: number) => {
       const wall = wallRef.current;
       if (!wall) return;
@@ -199,6 +220,51 @@ export default function Regie() {
     },
     [reorderTo]
   );
+
+  const onDragMove = useCallback(
+    (id: string, clientX: number, clientY: number) => {
+      dragPointer.current = { x: clientX, y: clientY };
+      dropAt(id, clientX, clientY);
+    },
+    [dropAt]
+  );
+
+  /**
+   * En mode focus, tenir une vignette contre le haut ou le bas du bandeau le
+   * fait défiler. Sans cela, on ne pourrait réordonner qu'entre les quatre
+   * vignettes visibles, et jamais remonter une source venue du bas.
+   */
+  useEffect(() => {
+    if (!dragId || mode !== "focus") return;
+    const EDGE = 15; // bande sensible, en % de la hauteur du mur
+    const STEP = 2.6; // avance par battement, en % de la hauteur du mur
+
+    const timer = window.setInterval(() => {
+      const wall = wallRef.current;
+      const pointer = dragPointer.current;
+      if (!wall || !pointer) return;
+
+      const box = wall.getBoundingClientRect();
+      const x = ((pointer.x - box.left) / box.width) * 100;
+      if (x < stripLeftEdge()) return;
+
+      const y = ((pointer.y - box.top) / box.height) * 100;
+      const range = stripScrollRange(orderRef.current.length, box.width / box.height);
+      const current = stripOffsetRef.current;
+
+      let next = current;
+      if (y < EDGE) next = Math.max(0, current - STEP);
+      else if (y > 100 - EDGE) next = Math.min(range, current + STEP);
+      if (next === current) return;
+
+      setStripOffset(next);
+      stripOffsetRef.current = next;
+      // Les vignettes viennent de bouger sous le pointeur : on réévalue la cible.
+      dropAt(dragId, pointer.x, pointer.y);
+    }, 80);
+
+    return () => window.clearInterval(timer);
+  }, [dragId, mode, dropAt]);
 
   // Un second appel sur la même source ramène à la grille : la bascule doit
   // se défaire par le geste qui l'a faite.
@@ -255,6 +321,7 @@ export default function Regie() {
           volume: DEFAULT_VOLUME,
           muted: true,
           status: "loading",
+          nonce: 0,
         });
       }
       setPovs(seeded);
@@ -423,6 +490,7 @@ export default function Regie() {
   );
   orderRef.current = order;
   rectsRef.current = rects;
+  stripOffsetRef.current = stripOffset;
 
   const shownId = focusedId && order.includes(focusedId) ? focusedId : order[0];
 
@@ -571,8 +639,8 @@ export default function Regie() {
               </p>
               <p>
                 Une source ajoutée attend un clic en son centre pour démarrer, et arrive
-                muette. Survolez-la pour régler son volume ou la retirer, glissez-la pour
-                la déplacer, cliquez sa pastille <b>Goals</b> pour voir ses paliers de dons.
+                muette. Ouvrez ses réglages pour le volume ou la relance, glissez-la pour
+                la déplacer, et sa pastille <b>Goals</b> montre ses paliers de dons.
               </p>
               <p className="hint">
                 1–9 son exclusif · 0 tout couper · G grille · F focus · P plein · S sources
@@ -602,11 +670,16 @@ export default function Regie() {
                 onSolo={soloPov}
                 onFocus={enlarge}
                 onFullscreen={toggleFullscreen}
+                onRefresh={refreshPov}
                 isFullscreen={mode === "fullscreen" && shownId === pov.id}
                 onMove={movePov}
                 canMoveBack={index > 0}
                 canMoveForward={index >= 0 && index < order.length - 1}
-                draggable={mode === "grid" && order.length > 1 && !stacked}
+                draggable={
+                  !stacked &&
+                  order.length > 1 &&
+                  (mode === "grid" || (mode === "focus" && pov.id !== shownId))
+                }
                 dragging={dragId === pov.id}
                 onDragStart={onDragStart}
                 onDragMove={onDragMove}

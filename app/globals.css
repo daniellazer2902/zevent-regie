@@ -273,6 +273,10 @@ button, input, select { font-family: inherit; color: inherit; }
 }
 .tile-inner {
   position: relative;
+  /* Permet au bandeau de s'adapter à la taille de SA vignette, et pas à celle
+     de la fenêtre : une vignette de bandeau et une case de grille n'ont rien
+     de commun. */
+  container-type: size;
   width: 100%;
   height: 100%;
   background: #000;
@@ -416,15 +420,33 @@ button, input, select { font-family: inherit; color: inherit; }
   .tile:hover .overlay {
     opacity: 1;
     transform: translate(-50%, 0);
-    pointer-events: auto;
   }
 }
 .tile:focus-within .overlay,
 .tile[data-overlay="true"] .overlay {
   opacity: 1;
   transform: translate(-50%, 0);
-  pointer-events: auto;
 }
+
+/* Le fond du bandeau laisse passer le pointeur : sur une petite vignette il
+   recouvre presque toute l'image, et confisquerait la prise pour la déplacer.
+   Seules les commandes elles-mêmes le captent, et seulement une fois visibles. */
+.overlay,
+.overlay-id,
+.overlay-row,
+.overlay .fader { pointer-events: none; }
+
+@media (hover: hover) {
+  .tile:hover .overlay .btn,
+  .tile:hover .overlay input[type="range"],
+  .tile:hover .overlay .channel { pointer-events: auto; }
+}
+.tile:focus-within .overlay .btn,
+.tile:focus-within .overlay input[type="range"],
+.tile:focus-within .overlay .channel,
+.tile[data-overlay="true"] .overlay .btn,
+.tile[data-overlay="true"] .overlay input[type="range"],
+.tile[data-overlay="true"] .overlay .channel { pointer-events: auto; }
 
 .overlay-id { display: flex; align-items: center; gap: 8px; max-width: 100%; }
 .overlay-id img, .overlay-id .noavatar {
@@ -746,3 +768,25 @@ input[type="range"].live::-moz-range-thumb { background: var(--tally); }
 /* Le nom de la chaîne mène au direct sur Twitch. */
 .overlay-id .m .channel { color: var(--dim); text-decoration: none; border-bottom: 1px solid transparent; }
 .overlay-id .m .channel:hover { color: var(--tally); border-bottom-color: var(--tally); }
+
+/* Bouton réduit à son icône. */
+.btn.icon-only { padding: 0 7px; }
+.btn svg { flex: 0 0 auto; }
+/* Deux rangées serrées : le bandeau ne doit jamais recouvrir la vignette. */
+.overlay-row { justify-content: center; }
+.overlay .fader .mono { min-width: 22px; }
+
+/* ---------- Vignette basse : le bandeau se fait discret ---------- */
+
+/* Sur une vignette du bandeau, les commandes déployées recouvraient toute
+   l'image et empêchaient de la saisir pour la déplacer. On resserre, et on
+   laisse tomber l'identité, déjà lisible en bas de la vignette. */
+@container (max-height: 300px) or (max-width: 520px) {
+  .overlay { padding: 4px 5px 5px; gap: 3px; max-width: 100%; }
+  .overlay-id { display: none; }
+  .overlay-row { gap: 3px; }
+  .overlay .btn { height: 21px; padding: 0 6px; font-size: 10px; letter-spacing: 0.06em; }
+  .overlay .btn.icon-only { padding: 0 5px; }
+  .overlay input[type="range"] { width: 64px; }
+  .overlay .fader .mono { display: none; }
+}

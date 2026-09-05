@@ -11,6 +11,12 @@ export type Pov = {
   volume: number; // 0 → 1
   muted: boolean;
   status: PovStatus;
+  /**
+   * Incrémenté pour reconstruire le lecteur de zéro. Un flux coupé — mise en
+   * arrière-plan sur téléphone, blocage de script, redémarrage du stream — ne
+   * repart pas tout seul : seule une reconstruction le récupère.
+   */
+  nonce: number;
 };
 
 export type LayoutMode = "grid" | "focus" | "fullscreen";

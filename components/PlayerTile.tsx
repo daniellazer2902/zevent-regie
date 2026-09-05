@@ -14,6 +14,7 @@ type Props = {
   onSolo: (id: string) => void;
   onFocus: (id: string) => void;
   onFullscreen: (id: string) => void;
+  onRefresh: (id: string) => void;
   isFullscreen: boolean;
   onMove: (id: string, direction: -1 | 1) => void;
   canMoveBack: boolean;
@@ -30,6 +31,62 @@ type Props = {
   onDragMove: (id: string, clientX: number, clientY: number) => void;
   onDragEnd: () => void;
 };
+
+function RefreshIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15" />
+    </svg>
+  );
+}
+
+function FullscreenIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M16 21h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3" />
+    </svg>
+  );
+}
+
+function ExpandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+      strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+      strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
 
 const STATUS_LABEL: Record<Pov["status"], string | null> = {
   loading: null, // l'invitation à lancer tient lieu d'indicateur
@@ -48,6 +105,7 @@ export default function PlayerTile({
   onSolo,
   onFocus,
   onFullscreen,
+  onRefresh,
   isFullscreen,
   onMove,
   canMoveBack,
@@ -69,22 +127,24 @@ export default function PlayerTile({
   const [goalsOpen, setGoalsOpen] = useState(false);
   const currentStepRef = useRef<HTMLLIElement | null>(null);
 
-  // Les valeurs courantes, lues depuis les gestionnaires d'événements Twitch
-  // sans faire dépendre la création du lecteur de chaque changement de volume.
   // Point de saisie d'un glisser : le déplacement ne démarre qu'au-delà d'un
   // seuil, pour ne pas confondre un simple clic avec un déplacement.
   const grabbedAt = useRef<{ x: number; y: number } | null>(null);
   const captured = useRef(false);
 
+  // Les valeurs courantes, lues depuis les gestionnaires d'événements Twitch
+  // sans faire dépendre la création du lecteur de chaque changement de volume.
   const stateRef = useRef({ volume: pov.volume, muted: pov.muted });
   stateRef.current = { volume: pov.volume, muted: pov.muted };
 
   const audible = !pov.muted && pov.volume > 0 && pov.status === "playing";
 
-  // Création du lecteur. Une seule fois par POV : le démonter reviendrait à
-  // recharger le flux et à perdre les réglages.
+  // Création du lecteur. Une seule fois par source, sauf demande explicite de
+  // relance : le démonter reviendrait à recharger le flux et à perdre les
+  // réglages.
   useEffect(() => {
     let cancelled = false;
+    started.current = false;
     const mount = mountRef.current;
     if (!mount) return;
 
@@ -149,7 +209,7 @@ export default function PlayerTile({
       if (mount) mount.innerHTML = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pov.id, pov.login]);
+  }, [pov.id, pov.login, pov.nonce]);
 
   useEffect(() => {
     try {
@@ -186,6 +246,13 @@ export default function PlayerTile({
   const move = (e: React.PointerEvent<HTMLDivElement>) => {
     const from = grabbedAt.current;
     if (!from) return;
+    // Un relâchement qui atterrit ailleurs — sur un bouton du bandeau, hors de
+    // la case — laisserait la prise armée, et le survol suivant déclencherait
+    // un déplacement involontaire. Sans bouton enfoncé, il n'y a pas de glisser.
+    if (e.buttons === 0) {
+      grabbedAt.current = null;
+      return;
+    }
     if (!captured.current) {
       const distance = Math.hypot(e.clientX - from.x, e.clientY - from.y);
       if (distance < DRAG_THRESHOLD) return;
@@ -356,9 +423,10 @@ export default function PlayerTile({
             </span>
           </div>
 
-
-
           <div className="overlay-row">
+            <button className="btn" onClick={() => onSolo(pov.id)} title="Ne garder que cette source audible">
+              Solo
+            </button>
             <button
               className="btn tally"
               aria-pressed={!pov.muted}
@@ -384,26 +452,39 @@ export default function PlayerTile({
                 {Math.round(pov.volume * 100)}
               </span>
             </div>
-            <button className="btn" onClick={() => onSolo(pov.id)} title="Ne garder que cette source audible">
-              Solo
-            </button>
           </div>
 
           <div className="overlay-row">
-            <button className="btn" onClick={() => onFocus(pov.id)} title="Agrandir cette source">
-              Agrandir
+            <button
+              className="btn icon-only"
+              onClick={() => onRefresh(pov.id)}
+              aria-label={`Relancer le flux de ${pov.display}`}
+              title="Relancer ce flux — utile s'il s'est figé ou coupé"
+            >
+              <RefreshIcon />
             </button>
             <button
-              className="btn"
+              className="btn icon-only"
+              onClick={() => onFocus(pov.id)}
+              aria-label={`Agrandir ${pov.display}`}
+              title="Agrandir cette source"
+            >
+              <ExpandIcon />
+            </button>
+            <button
+              className="btn icon-only"
               aria-pressed={isFullscreen}
               onClick={() => onFullscreen(pov.id)}
+              aria-label={
+                isFullscreen ? "Revenir à la grille" : `Afficher ${pov.display} plein cadre`
+              }
               title={
                 isFullscreen
                   ? "Revenir à la grille"
-                  : "Occuper tout le mur — les autres sources restent audibles"
+                  : "Occuper tout l'écran — les autres sources restent audibles"
               }
             >
-              ⛶ Plein cadre
+              <FullscreenIcon />
             </button>
             <button
               className="btn"
@@ -421,8 +502,13 @@ export default function PlayerTile({
             >
               →
             </button>
-            <button className="btn" onClick={() => onRemove(pov.id)} title="Retirer cette source du mur">
-              Retirer
+            <button
+              className="btn icon-only"
+              onClick={() => onRemove(pov.id)}
+              aria-label={`Retirer ${pov.display} du mur`}
+              title="Retirer cette source du mur"
+            >
+              <CloseIcon />
             </button>
           </div>
         </div>
